@@ -128,8 +128,8 @@ class NamedEntityRecognizer(ViterbiDecoder):
 NER = NamedEntityRecognizer(trans=K.eval(CRF.trans), starts=[0], ends=[0])
 
 if __name__ == '__main__':
-    model.load_weights('medical_ner.weights')
-    medical_dicts_drop_duplicates = open("../china-people-daily-ner-corpus/medical_ner_without_label.txt", "r",
+    model.load_weights('chinese_name_ner')
+    medical_dicts_drop_duplicates = open("../data/name_data_words.csv", "r",
                                          encoding="utf-8")
     export = []
     import pandas as pd
@@ -138,4 +138,4 @@ if __name__ == '__main__':
         R = NER.recognize(i)
         R.insert(0, i)
         export.append(R)
-    pd.DataFrame(export).drop_duplicates().to_csv("NER_page_question_second.csv")
+    pd.DataFrame(export).drop_duplicates().to_csv("name_data_words_predict.csv")

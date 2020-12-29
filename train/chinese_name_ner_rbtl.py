@@ -220,7 +220,7 @@ class Evaluator(keras.callbacks.Callback):
         # 保存最优
         if f1 >= self.best_val_f1:
             self.best_val_f1 = f1
-            model.save_weights('./' + str(self.best_val_f1) + 'question_entity.weights')
+            model.save_weights('./' + str(self.best_val_f1) + 'chinese_name_ner.weights')
         print(
             'valid:  f1: %.5f, precision: %.5f, recall: %.5f, best f1: %.5f\n' %
             (f1, precision, recall, self.best_val_f1)
