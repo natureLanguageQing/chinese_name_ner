@@ -14,54 +14,74 @@ from bert4keras.snippets import ViterbiDecoder, to_array
 from bert4keras.snippets import sequence_padding, DataGenerator
 from bert4keras.tokenizers import Tokenizer
 
-rbtl_config_path = '../pre_train_language_model/rbtl3/bert_config_rbtl3.json'
-rbtl_checkpoint_path = '../pre_train_language_model/rbtl3/bert_model.ckpt'
-rbtl_dict_path = '../pre_train_language_model/rbtl3/vocab.txt'
-wait_train_data = '../data/name_data_ner.json'
+rbtl_config_path = '../chinese_rktl3/bert_config_rbtl3.json'
+rbtl_checkpoint_path = '../chinese_rktl3/bert_model.ckpt'
+rbtl_dict_path = '../chinese_rktl3/vocab.txt'
+wait_train_data = '../data/bmes_train.json'
+
+
+def index_of_str(s1, s2, label):
+    s2 = s2.rstrip("\n")
+    dex = 0
+    index = []
+    lt = s1.split(s2)
+    num = len(lt)
+    for i in range(num - 1):
+        dex += len(lt[i])
+        index.append([dex, len(s2) + dex, label, s2])
+        dex += len(s2)
+    return index
 
 
 def load_data(filename):
     D = []
     labels = []
     f = open(filename, encoding='utf-8')
-    for f in f.readlines():
-        d = []
-        medical = json.loads(f)
+    d = []
+    medical = json.load(f)
+    for medical in medical:
         medical_text = medical["text"]
-        medical_labels = medical["labels"]
+        medical_labels = medical["entities"]
         next_label = 0
+        label_index_list = []
         for medical_label in medical_labels:
-            begin_label = medical_label[0]
-            if medical_text[next_label:begin_label] != "":
-                d.append([medical_text[next_label:begin_label], "O"])
-            last_label = medical_label[1]
-            d.append([medical_text[begin_label:last_label], medical_label[2]])
-            next_label = last_label
-            if medical_label[2] not in labels:
-                labels.append(medical_label[2])
+            medical_pair = medical_label.split("-")
+            label_index = index_of_str(medical_text, medical_pair[0], medical_pair[1])
+            labels.append(medical_pair[1])
+            label_index_list.extend(label_index)
+        for label_index in label_index_list:
+            d.append([medical_text[next_label: label_index[0]], "O"])
+            d.append([medical_text[label_index[0]: label_index[1]], label_index[2]])
+            next_label = label_index[1]
         D.append(d)
+
+    labels = list(set(labels))
     return D, labels
+
+
+load_data(wait_train_data)
 
 
 def load_data_tri(filename):
     D = []
     labels = []
     f = open(filename, encoding='utf-8')
-    for f in f.readlines():
-        d = []
-        medical = json.loads(f)
+    d = []
+    medical = json.load(f)
+    for medical in medical:
         medical_text = medical["text"]
-        medical_labels = medical["labels"]
+        medical_labels = medical["entities"]
         next_label = 0
+        label_index_list = []
         for medical_label in medical_labels:
-            begin_label = medical_label[0]
-            if medical_text[next_label:begin_label] != "":
-                d.append([medical_text[next_label:begin_label], "O"])
-            last_label = medical_label[1]
-            d.append([medical_text[begin_label:last_label], medical_label[2]])
-            next_label = last_label
-            if medical_label[2] not in labels:
-                labels.append(medical_label[2])
+            medical_pair = medical_label.split("-")
+            label_index = index_of_str(medical_text, medical_pair[0], medical_pair[1])
+            labels.append(medical_pair[1])
+            label_index_list.extend(label_index)
+        for label_index in label_index_list:
+            d.append([medical_text[next_label: label_index[0]], "O"])
+            d.append([medical_text[label_index[0]: label_index[1]], label_index[2]])
+            next_label = label_index[1]
         D.append(d)
     valid_data = []
     train_data = []
@@ -79,7 +99,6 @@ def load_data_tri(filename):
 
 def get_id2label(label_path, train_path):
     train_data, labels = load_data(train_path)
-    print(train_data)
     id2label = dict(enumerate(labels))
     labels_file = open(label_path, "w", encoding="utf-8")
     json.dump(id2label, labels_file)
@@ -90,7 +109,7 @@ def get_id2label(label_path, train_path):
     return id2label, label2id, num_labels
 
 
-id2label, label2id, num_labels = get_id2label(label_path="family_doctor.rbtl.labels.json",
+id2label, label2id, num_labels = get_id2label(label_path="bmes_train.rbtl.labels.json",
                                               train_path=wait_train_data)
 max_text_length = 32
 epochs = 10
@@ -177,7 +196,7 @@ class NamedEntityRecognizer(ViterbiDecoder):
             if label > 0:
                 if label % 2 == 1:
                     starting = True
-                    entities.append([[i], id2label[str((label - 1) // 2)]])
+                    entities.append([[i], id2label[(label - 1) // 2]])
                 elif starting:
                     entities[-1][0].append(i)
                 else:
@@ -217,11 +236,12 @@ class Evaluator(keras.callbacks.Callback):
     def on_epoch_end(self, epoch, logs=None):
         trans = K.eval(CRF.trans)
         NER.trans = trans
+
         f1, precision, recall = evaluate(valid_data)
         # 保存最优
         if f1 >= self.best_val_f1:
             self.best_val_f1 = f1
-            model.save_weights('./' + str(self.best_val_f1) + 'chinese_name_ner.weights')
+            model.save_weights('../bmes_models/' + str(self.best_val_f1) + 'bmes.weights')
         print(
             'valid:  f1: %.5f, precision: %.5f, recall: %.5f, best f1: %.5f\n' %
             (f1, precision, recall, self.best_val_f1)

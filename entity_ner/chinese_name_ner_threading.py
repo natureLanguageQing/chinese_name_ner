@@ -1,7 +1,6 @@
 # 多线程字典最大正向匹配分词
 
 import json
-import os
 import threading
 from copy import deepcopy
 from queue import Queue
