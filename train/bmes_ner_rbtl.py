@@ -38,9 +38,10 @@ def load_data(filename):
     D = []
     labels = []
     f = open(filename, encoding='utf-8')
-    d = []
     medical = json.load(f)
     for medical in medical:
+        d = []
+
         medical_text = medical["text"]
         medical_labels = medical["entities"]
         next_label = 0
@@ -67,9 +68,10 @@ def load_data_tri(filename):
     D = []
     labels = []
     f = open(filename, encoding='utf-8')
-    d = []
     medical = json.load(f)
     for medical in medical:
+        d = []
+
         medical_text = medical["text"]
         medical_labels = medical["entities"]
         next_label = 0

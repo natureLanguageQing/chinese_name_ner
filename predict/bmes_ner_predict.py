@@ -135,7 +135,5 @@ if __name__ == '__main__':
 
     for i in tqdm(medical_dicts_drop_duplicates):
         R = NER.recognize(i["text"])
-        print(R)
-        R.insert(0, i["text"])
-        export.append({"id": i["id"], "entities": []})
+        export.append({"id": i["id"], "entities": R})
     json.dump(export, open("entities.json", "w", encoding="utf-8"))
