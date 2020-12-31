@@ -75,17 +75,14 @@ def load_data_tri(filename):
             d.append([medical_text[next_label: label_index["start_offset"]], "O"])
             d.append([medical_text[label_index["start_offset"]: label_index["end_offset"]], label_index["label"]])
             next_label = label_index["end_offset"]
-            print(label_index)
             labels.append(label_index["label"])
         D.append(d)
-    print(labels)
     labels = list(set(labels))
-    print(labels)
     valid_data = []
     train_data = []
     test_data = []
     for index, data in enumerate(D):
-        count = index % 6
+        count = index % 12
         if count == 1:
             valid_data.append(data)
         elif count == 2:
@@ -107,11 +104,11 @@ def get_id2label(label_path, train_path):
     return id2label, label2id, num_labels
 
 
-id2label, label2id, num_labels = get_id2label(label_path="family_doctor.ner.labels.json",
+id2label, label2id, num_labels = get_id2label(label_path="answer.ner.labels.json",
                                               train_path=wait_train_data)
-max_text_length = 32
+max_text_length = 64
 epochs = 10
-batch_size = 16
+batch_size = 32
 bert_layers = 3
 learing_rate = 1e-5  # bert_layers越小，学习率应该要越大
 crf_lr_multiplier = 1000  # 必要时扩大CRF层的学习率
@@ -239,7 +236,10 @@ class Evaluator(keras.callbacks.Callback):
         # 保存最优
         if f1 >= self.best_val_f1:
             self.best_val_f1 = f1
-            model.save_weights('../medical_ner/' + str(self.best_val_f1) + 'medical_ner.weights')
+            import os
+            if not os.path.exists("../answer_ner"):
+                os.mkdir("../answer_ner")
+            model.save_weights('../answer_ner/' + str(self.best_val_f1) + 'medical_ner.weights')
         print(
             'valid:  f1: %.5f, precision: %.5f, recall: %.5f, best f1: %.5f\n' %
             (f1, precision, recall, self.best_val_f1)
@@ -253,13 +253,24 @@ class Evaluator(keras.callbacks.Callback):
 
 if __name__ == '__main__':
     evaluator = Evaluator()
-    train_data, test_data, valid_data, _ = load_data_tri(wait_train_data)
+    import os
 
+    if os.path.exists("../data/answer_ner/answer_ner_train.json"):
+        train_data = json.load(open("../data/answer_ner/answer_ner_train.json", "r", encoding="utf-8"))
+        test_data = json.load(open("../data/answer_ner/answer_ner_test.json", "r", encoding="utf-8"))
+        valid_data = json.load(open("../data/answer_ner/answer_ner_valid.json", "r", encoding="utf-8"))
+    else:
+        train_data, test_data, valid_data, _ = load_data_tri(wait_train_data)
+        json.dump(train_data, open("../data/answer_ner/answer_ner_train.json", "w", encoding="utf-8"),
+                  ensure_ascii=False)
+        json.dump(test_data, open("../data/answer_ner/answer_ner_test.json", "w", encoding="utf-8"), ensure_ascii=False)
+        json.dump(valid_data, open("../data/answer_ner/answer_ner_valid.json", "w", encoding="utf-8"),
+                  ensure_ascii=False)
     train_generator = data_generator(train_data, batch_size)
 
-    # model.fit(
-    #     train_generator.forfit(),
-    #     steps_per_epoch=len(train_generator),
-    #     epochs=epochs,
-    #     callbacks=[evaluator]
-    # )
+    model.fit(
+        train_generator.forfit(),
+        steps_per_epoch=len(train_generator),
+        epochs=epochs,
+        callbacks=[evaluator]
+    )
