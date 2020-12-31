@@ -17,7 +17,7 @@ from bert4keras.tokenizers import Tokenizer
 rbtl_config_path = '../pre_train_language_model/rbtl3/bert_config_rbtl3.json'
 rbtl_checkpoint_path = '../pre_train_language_model/rbtl3/bert_model.ckpt'
 rbtl_dict_path = '../pre_train_language_model/rbtl3/vocab.txt'
-wait_train_data = '../data/medical_ner/clean_medical_ner_entities_1229.json'
+wait_train_data = '../data/breath/breath_answer_entity.json'
 
 
 def index_of_str(s1, s2, label):
@@ -37,19 +37,20 @@ def load_data(filename):
     D = []
     labels = []
     f = open(filename, encoding='utf-8')
-    medical = json.load(f)
-    for medical in medical:
+    for i in f.readlines():
+        medical = json.loads(i)
         d = []
 
         medical_text = medical["text"]
-        medical_labels = medical["annotations"]
+        medical_labels = medical["labels"]
         next_label = 0
 
         for label_index in medical_labels:
-            d.append([medical_text[next_label: label_index["start_offset"]], "O"])
-            d.append([medical_text[label_index["start_offset"]: label_index["end_offset"]], label_index["label"]])
-            next_label = label_index["end_offset"]
-            labels.append(label_index["label"])
+            if next_label != label_index[0]:
+                d.append([medical_text[next_label: label_index[0]], "O"])
+            d.append([medical_text[label_index[0]: label_index[1]], label_index[2]])
+            next_label = label_index[1]
+            labels.append(label_index[2])
         D.append(d)
 
     labels = list(set(labels))
@@ -63,19 +64,20 @@ def load_data_tri(filename):
     D = []
     labels = []
     f = open(filename, encoding='utf-8')
-    medical = json.load(f)
-    for medical in medical:
+    for i in f.readlines():
+        medical = json.loads(i)
         d = []
 
         medical_text = medical["text"]
-        medical_labels = medical["annotations"]
+        medical_labels = medical["labels"]
         next_label = 0
 
         for label_index in medical_labels:
-            d.append([medical_text[next_label: label_index["start_offset"]], "O"])
-            d.append([medical_text[label_index["start_offset"]: label_index["end_offset"]], label_index["label"]])
-            next_label = label_index["end_offset"]
-            labels.append(label_index["label"])
+            if next_label != label_index[0]:
+                d.append([medical_text[next_label: label_index[0]], "O"])
+            d.append([medical_text[label_index[0]: label_index[1]], label_index[2]])
+            next_label = label_index[1]
+            labels.append(label_index[2])
         D.append(d)
     labels = list(set(labels))
     valid_data = []
@@ -239,7 +241,7 @@ class Evaluator(keras.callbacks.Callback):
             import os
             if not os.path.exists("../answer_ner"):
                 os.mkdir("../answer_ner")
-            model.save_weights('../answer_ner/' + str(self.best_val_f1) + 'medical_ner.weights')
+            model.save_weights('../breath_answer_ner_split/' + str(self.best_val_f1) + 'medical_ner.weights')
         print(
             'valid:  f1: %.5f, precision: %.5f, recall: %.5f, best f1: %.5f\n' %
             (f1, precision, recall, self.best_val_f1)
@@ -255,16 +257,17 @@ if __name__ == '__main__':
     evaluator = Evaluator()
     import os
 
-    if os.path.exists("../data/answer_ner/answer_ner_train.json"):
-        train_data = json.load(open("../data/answer_ner/answer_ner_train.json", "r", encoding="utf-8"))
-        test_data = json.load(open("../data/answer_ner/answer_ner_test.json", "r", encoding="utf-8"))
-        valid_data = json.load(open("../data/answer_ner/answer_ner_valid.json", "r", encoding="utf-8"))
+    if os.path.exists("../data/breath_answer_ner_split/answer_ner_train.json"):
+        train_data = json.load(open("../data/breath_answer_ner_split/answer_ner_train.json", "r", encoding="utf-8"))
+        test_data = json.load(open("../data/breath_answer_ner_split/answer_ner_test.json", "r", encoding="utf-8"))
+        valid_data = json.load(open("../data/breath_answer_ner_split/answer_ner_valid.json", "r", encoding="utf-8"))
     else:
         train_data, test_data, valid_data, _ = load_data_tri(wait_train_data)
-        json.dump(train_data, open("../data/answer_ner/answer_ner_train.json", "w", encoding="utf-8"),
+        json.dump(train_data, open("../data/breath_answer_ner_split/answer_ner_train.json", "w", encoding="utf-8"),
                   ensure_ascii=False)
-        json.dump(test_data, open("../data/answer_ner/answer_ner_test.json", "w", encoding="utf-8"), ensure_ascii=False)
-        json.dump(valid_data, open("../data/answer_ner/answer_ner_valid.json", "w", encoding="utf-8"),
+        json.dump(test_data, open("../data/breath_answer_ner_split/answer_ner_test.json", "w", encoding="utf-8"),
+                  ensure_ascii=False)
+        json.dump(valid_data, open("../data/breath_answer_ner_split/answer_ner_valid.json", "w", encoding="utf-8"),
                   ensure_ascii=False)
     train_generator = data_generator(train_data, batch_size)
 

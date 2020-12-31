@@ -132,7 +132,7 @@ class BSSpider(threading.Thread):
                             continue
                         label_index_list = []
                         for i, j in ner_label.items():
-                            if i in medical_message:
+                            if len(i) > 3 and i in medical_message:
 
                                 label_index = index_of_str(medical_message, i, j)
                                 if len(label_index) >= 1:
@@ -167,11 +167,36 @@ if __name__ == '__main__':
     medical_questions = pd.read_csv("../data/breath/breath.answer.csv").drop_duplicates().values.tolist()
     fp = open('../data/breath/breath_answer_entity.json', 'w', newline='', encoding='utf-8')
 
-    page_queue = Queue()
+    medical_message = "初步考虑有膝关节半月板损伤、滑膜炎等病患的可能，建议进行血常规、血沉、类风湿因子、核磁共振等检查，以明确诊断进行相应的治疗，如有必要可进行理疗、热敷，应用非甾体消炎止痛药、活血化瘀药物、氨基葡萄糖等药物治疗，注意保暖防潮，避免损伤关。。".strip()
+    medical_message = medical_message.replace("\n", "")
+    medical_message = medical_message.replace("\r", "")
+    medical_message = medical_message.replace(" ", "")
+    label_index_list = []
+    for i, j in ner_label.items():
+        if len(i) > 2 and i in medical_message:
 
-    for url in medical_questions:
-        page_queue.put(url)
+            label_index = index_of_str(medical_message, i, j)
+            if len(label_index) >= 1:
+                label_append_max(label_index_list, label_index)
 
-    for x in range(8):
-        t = BSSpider(page_queue)
-        t.start()
+    if len(label_index_list) > 2 and len(medical_message) > 10:
+        label_index_list = sorted(label_index_list, key=lambda k: k[0], reverse=False)
+        export_list = [label_index_list[0]]
+        for label_index in range(1, len(label_index_list)):
+            now_label = label_index_list[label_index]
+            last_label = label_index_list[label_index - 1]
+            if last_label[1] >= now_label[0]:
+                if last_label[1] - last_label[0] >= now_label[1] - now_label[0]:
+                    continue
+                elif last_label in export_list:
+
+                    export_list.remove(last_label)
+                    export_list.append(now_label)
+                else:
+                    continue
+            else:
+                export_list.append(now_label)
+        entity_dict_label = {"text": medical_message, "labels": export_list}
+        entity_dict_label = json.dumps(entity_dict_label, ensure_ascii=False)
+
+        fp.write(entity_dict_label + "\n")
