@@ -239,9 +239,9 @@ class Evaluator(keras.callbacks.Callback):
         if f1 >= self.best_val_f1:
             self.best_val_f1 = f1
             import os
-            if not os.path.exists("../answer_ner"):
-                os.mkdir("../answer_ner")
-            model.save_weights('../breath_answer_ner_split/' + str(self.best_val_f1) + 'medical_ner.weights')
+            if not os.path.exists("../breath_answer_ner_model"):
+                os.mkdir("../breath_answer_ner_model")
+            model.save_weights('../breath_answer_ner_model/' + str(self.best_val_f1) + 'answer_ner.weights')
         print(
             'valid:  f1: %.5f, precision: %.5f, recall: %.5f, best f1: %.5f\n' %
             (f1, precision, recall, self.best_val_f1)
