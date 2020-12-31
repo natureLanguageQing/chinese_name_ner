@@ -164,10 +164,10 @@ class BSSpider(threading.Thread):
 
 
 if __name__ == '__main__':
-    medical_questions = pd.read_csv("../data/breath/breath.answer.csv").drop_duplicates().values.tolist()
-    fp = open('../data/breath/breath_answer_entity.json', 'w', newline='', encoding='utf-8')
+    # medical_questions = pd.read_csv("../data/breath/breath.answer.csv").drop_duplicates().values.tolist()
+    # fp = open('../data/breath/breath_answer_entity.json', 'w', newline='', encoding='utf-8')
 
-    medical_message = "初步考虑有膝关节半月板损伤、滑膜炎等病患的可能，建议进行血常规、血沉、类风湿因子、核磁共振等检查，以明确诊断进行相应的治疗，如有必要可进行理疗、热敷，应用非甾体消炎止痛药、活血化瘀药物、氨基葡萄糖等药物治疗，注意保暖防潮，避免损伤关。。".strip()
+    medical_message = "绒毛结节状滑膜炎、滑膜炎等病患的可能，建议进行血常规、血沉、类风湿因子、核磁共振等检查，以明确诊断进行相应的治疗，如有必要可进行理疗、热敷，应用非甾体消炎止痛药、活血化瘀药物、氨基葡萄糖等药物治疗，注意保暖防潮，避免损伤关。。".strip()
     medical_message = medical_message.replace("\n", "")
     medical_message = medical_message.replace("\r", "")
     medical_message = medical_message.replace(" ", "")
@@ -197,6 +197,7 @@ if __name__ == '__main__':
             else:
                 export_list.append(now_label)
         entity_dict_label = {"text": medical_message, "labels": export_list}
-        entity_dict_label = json.dumps(entity_dict_label, ensure_ascii=False)
-
-        fp.write(entity_dict_label + "\n")
+        print(json.dumps(entity_dict_label,ensure_ascii=False))
+        # entity_dict_label = json.dumps(entity_dict_label, ensure_ascii=False)
+        #
+        # fp.write(entity_dict_label + "\n")
