@@ -14,9 +14,9 @@ from bert4keras.snippets import ViterbiDecoder, to_array
 from bert4keras.snippets import sequence_padding, DataGenerator
 from bert4keras.tokenizers import Tokenizer
 
-rbtl_config_path = '../pre_train_language_model/rbtl3/bert_config_rbtl3.json'
-rbtl_checkpoint_path = '../pre_train_language_model/rbtl3/bert_model.ckpt'
-rbtl_dict_path = '../pre_train_language_model/rbtl3/vocab.txt'
+rbtl_config_path = '../chinese_roberta_wwm_ext/bert_config.json'
+rbtl_checkpoint_path = '../chinese_roberta_wwm_ext/bert_model.ckpt'
+rbtl_dict_path = '../chinese_roberta_wwm_ext/vocab.txt'
 wait_train_data = '../data/bmes_train.json'
 
 
@@ -31,7 +31,6 @@ def index_of_str(s1, s2, label):
         index.append([dex, len(s2) + dex, label, s2])
         dex += len(s2)
     return index
-
 
 
 def load_data(filename):
@@ -90,13 +89,13 @@ def load_data_tri(filename):
     train_data = []
     test_data = []
     for index, data in enumerate(D):
-        count = index % 6
-        if count == 1:
-            valid_data.append(data)
-        elif count == 2:
-            test_data.append(data)
-        else:
-            train_data.append(data)
+        # count = index % 6
+        # if count == 1:
+        #     valid_data.append(data)
+        # elif count == 2:
+        #     test_data.append(data)
+        # else:
+        train_data.append(data)
     return train_data, valid_data, test_data, labels
 
 
@@ -112,13 +111,13 @@ def get_id2label(label_path, train_path):
     return id2label, label2id, num_labels
 
 
-id2label, label2id, num_labels = get_id2label(label_path="bmes_train.rbtl.labels.json",
+id2label, label2id, num_labels = get_id2label(label_path="../labels/bmes_train.rbtl.labels.json",
                                               train_path=wait_train_data)
-max_text_length = 32
+max_text_length = 64
 epochs = 10
 batch_size = 16
 bert_layers = 3
-learing_rate = 1e-5  # bert_layers越小，学习率应该要越大
+learing_rate = 5e-5  # bert_layers越小，学习率应该要越大
 crf_lr_multiplier = 1000  # 必要时扩大CRF层的学习率
 
 # 建立分词器
@@ -239,6 +238,7 @@ class Evaluator(keras.callbacks.Callback):
     def on_epoch_end(self, epoch, logs=None):
         trans = K.eval(CRF.trans)
         NER.trans = trans
+        model.save_weights('../bmes_models/' + str(epoch) + 'bmes.weights')
 
         f1, precision, recall = evaluate(valid_data)
         # 保存最优
@@ -265,6 +265,5 @@ if __name__ == '__main__':
     model.fit(
         train_generator.forfit(),
         steps_per_epoch=len(train_generator),
-        epochs=epochs,
-        callbacks=[evaluator]
+        epochs=epochs, callbacks=[evaluator]
     )

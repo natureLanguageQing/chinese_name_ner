@@ -13,10 +13,10 @@ from bert4keras.optimizers import Adam
 from bert4keras.snippets import ViterbiDecoder, to_array
 from bert4keras.tokenizers import Tokenizer
 
-rbtl_config_path = '../pre_train_language_model/rbtl3/bert_config_rbtl3.json'
-rbtl_dict_path = '../pre_train_language_model/rbtl3/vocab.txt'
-wait_predict_data = '../data/breath/breath.answer.csv'
-model_path = "../medical_ner/0.8512227442476828medical_ner.weights"
+rbtl_config_path = '../chinese_roberta_wwm_ext/bert_config.json'
+rbtl_dict_path = '../chinese_roberta_wwm_ext/vocab.txt'
+wait_predict_data = '../data/bmes/bmes_test.json'
+model_path = "../bmes_models/4bmes.weights"
 
 
 def get_id2label(label_path):
@@ -31,10 +31,10 @@ def get_id2label(label_path):
     return id2label, label2id, num_labels
 
 
-id2label, label2id, num_labels = get_id2label(label_path="medical_train.ner.labels.json")
+id2label, label2id, num_labels = get_id2label(label_path="../labels/bmes_train.rbtl.labels.json")
 max_text_length = 128
 batch_size = 16
-bert_layers = 3
+bert_layers = 12
 learing_rate = 1e-5  # bert_layers越小，学习率应该要越大
 crf_lr_multiplier = 1000  # 必要时扩大CRF层的学习率
 
@@ -102,9 +102,12 @@ if __name__ == '__main__':
     medical_dicts_drop_duplicates = open(wait_predict_data, "r",
                                          encoding="utf-8")
     export = []
-
-    for i in tqdm(medical_dicts_drop_duplicates.readlines()[1:1000]):
-        R = NER.recognize(i.strip("\n")[:256])
-        export.append({"text": i, "entities": R})
+    print(id2label)
+    for i in tqdm(json.load(medical_dicts_drop_duplicates)):
+        R = NER.recognize(i["text"])
         print({"text": i, "entities": R})
+        export_entity = []
+        for r in R:
+            export_entity.append(r[0]+"-"+id2label[r[1]])
+        export.append({"id": ["id"], "text": i, "entities": export_entity})
     json.dump(export, open("breath.answer.json", "w", encoding="utf-8"), ensure_ascii=False)

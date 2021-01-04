@@ -1,34 +1,30 @@
 #! -*- coding: utf-8 -*-
 
 
-import json
-
 from keras.layers import Dense
 from keras.models import Model
 from tqdm import tqdm
 
-from bert4keras.backend import keras, K
+from bert4keras.backend import K
 from bert4keras.layers import ConditionalRandomField
 from bert4keras.models import build_transformer_model
 from bert4keras.optimizers import Adam
 from bert4keras.snippets import ViterbiDecoder, to_array
 from bert4keras.snippets import sequence_padding, DataGenerator
 from bert4keras.tokenizers import Tokenizer
-from model_config import rbtl_dict_path, rbtl_config_path, rbtl_checkpoint_path
 
 maxlen = 256
 epochs = 10
 batch_size = 32
-bert_layers = 12
+bert_layers = 3
 learing_rate = 1e-5  # bert_layers越小，学习率应该要越大
 crf_lr_multiplier = 1000  # 必要时扩大CRF层的学习率
 
 labels = []
 
-
-
-
-# 标注数据
+rbtl_config_path = '../pre_train_language_model/rbtl3/bert_config_rbtl3.json'
+# rbtl_checkpoint_path = '../pre_train_language_model/rbtl3/bert_model.ckpt'
+rbtl_dict_path = '../pre_train_language_model/rbtl3/vocab.txt'
 
 # 建立分词器
 tokenizer = Tokenizer(rbtl_dict_path, do_lower_case=True)
@@ -74,9 +70,7 @@ class data_generator(DataGenerator):
 
 
 model = build_transformer_model(
-    rbtl_config_path,
-    rbtl_checkpoint_path,
-)
+    rbtl_config_path)
 
 output_layer = 'Transformer-%s-FeedForward-Norm' % (bert_layers - 1)
 output = model.get_layer(output_layer).output
@@ -128,14 +122,16 @@ class NamedEntityRecognizer(ViterbiDecoder):
 NER = NamedEntityRecognizer(trans=K.eval(CRF.trans), starts=[0], ends=[0])
 
 if __name__ == '__main__':
-    model.load_weights('chinese_name_ner')
+    model.load_weights('../answer_ner/0.506407581808434medical_ner.weights')
     medical_dicts_drop_duplicates = open("../data/name_data_words.csv", "r",
                                          encoding="utf-8")
     export = []
     import pandas as pd
 
     for i in tqdm(medical_dicts_drop_duplicates):
+        print(i)
         R = NER.recognize(i)
         R.insert(0, i)
+        print(R)
         export.append(R)
     pd.DataFrame(export).drop_duplicates().to_csv("name_data_words_predict.csv")

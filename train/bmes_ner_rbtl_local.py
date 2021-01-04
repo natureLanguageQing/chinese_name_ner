@@ -14,10 +14,10 @@ from bert4keras.snippets import ViterbiDecoder, to_array
 from bert4keras.snippets import sequence_padding, DataGenerator
 from bert4keras.tokenizers import Tokenizer
 
-rbtl_config_path = '../chinese_rktl3/bert_config_rbtl3.json'
-rbtl_checkpoint_path = '../chinese_rktl3/bert_model.ckpt'
-rbtl_dict_path = '../chinese_rktl3/vocab.txt'
-wait_train_data = '../data/bmes_train.json'
+rbtl_config_path = '../pre_train_language_model/rbtl3/bert_config_rbtl3.json'
+rbtl_checkpoint_path = '../pre_train_language_model/rbtl3/bert_model.ckpt'
+rbtl_dict_path = '../pre_train_language_model/rbtl3/vocab.txt'
+wait_train_data = '../data/bmes/bmes_train.json'
 
 
 def index_of_str(s1, s2, label):
@@ -63,6 +63,10 @@ def load_data(filename):
 load_data(wait_train_data)
 
 
+def take_second(elem):
+    return elem[0]
+
+
 def load_data_tri(filename):
     D = []
     labels = []
@@ -80,10 +84,17 @@ def load_data_tri(filename):
             label_index = index_of_str(medical_text, medical_pair[0], medical_pair[1])
             labels.append(medical_pair[1])
             label_index_list.extend(label_index)
+        label_index_list.sort(key=take_second)
+
         for label_index in label_index_list:
-            d.append([medical_text[next_label: label_index[0]], "O"])
+            print(label_index)
+            if next_label < label_index[0]:
+                print(next_label, label_index[0])
+                print([medical_text[next_label: label_index[0]], "O"])
+                d.append([medical_text[next_label: label_index[0]], "O"])
+                next_label = label_index[1]
+
             d.append([medical_text[label_index[0]: label_index[1]], label_index[2]])
-            next_label = label_index[1]
         D.append(d)
     valid_data = []
     train_data = []
@@ -111,13 +122,13 @@ def get_id2label(label_path, train_path):
     return id2label, label2id, num_labels
 
 
-id2label, label2id, num_labels = get_id2label(label_path="bmes_train.rbtl.labels.json",
+id2label, label2id, num_labels = get_id2label(label_path="../labels/bmes_train.rbtl.labels.json",
                                               train_path=wait_train_data)
-max_text_length = 32
+max_text_length = 64
 epochs = 10
 batch_size = 16
 bert_layers = 3
-learing_rate = 1e-5  # bert_layers越小，学习率应该要越大
+learing_rate = 5e-5  # bert_layers越小，学习率应该要越大
 crf_lr_multiplier = 1000  # 必要时扩大CRF层的学习率
 
 # 建立分词器
@@ -238,6 +249,7 @@ class Evaluator(keras.callbacks.Callback):
     def on_epoch_end(self, epoch, logs=None):
         trans = K.eval(CRF.trans)
         NER.trans = trans
+        model.save_weights('../bmes_models/' + str(epoch) + 'bmes.weights')
 
         f1, precision, recall = evaluate(valid_data)
         # 保存最优
@@ -258,12 +270,11 @@ class Evaluator(keras.callbacks.Callback):
 if __name__ == '__main__':
     evaluator = Evaluator()
     train_data, test_data, valid_data, _ = load_data_tri(wait_train_data)
-
+    json.dump(train_data, open("bmes_train.rbtl.data.json", "w", encoding="utf-8"), ensure_ascii=False)
     train_generator = data_generator(train_data, batch_size)
 
     model.fit(
         train_generator.forfit(),
         steps_per_epoch=len(train_generator),
-        epochs=epochs,
-        callbacks=[evaluator]
+        epochs=epochs, callbacks=[evaluator]
     )

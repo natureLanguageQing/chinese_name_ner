@@ -16,7 +16,7 @@ from bert4keras.tokenizers import Tokenizer
 maxlen = 256
 epochs = 10
 batch_size = 32
-bert_layers = 12
+bert_layers = 3
 learing_rate = 1e-5  # bert_layers越小，学习率应该要越大
 crf_lr_multiplier = 1000  # 必要时扩大CRF层的学习率
 
@@ -128,12 +128,15 @@ NER = NamedEntityRecognizer(trans=K.eval(CRF.trans), starts=[0], ends=[0])
 if __name__ == '__main__':
     import json
 
-    model.load_weights('chinese_name_ner.weight')
-    medical_dicts_drop_duplicates = json.load(open("../data/bmes_test.json", "r",
+    model.load_weights('../bmes_models/0.7834084084084165bmes.weights')
+    medical_dicts_drop_duplicates = json.load(open("../data/bmes/bmes_test.json", "r",
                                                    encoding="utf-8"))
     export = []
 
     for i in tqdm(medical_dicts_drop_duplicates):
+        print(i["text"])
         R = NER.recognize(i["text"])
+        print({"id": i["id"], "entities": R})
         export.append({"id": i["id"], "entities": R})
+
     json.dump(export, open("entities.json", "w", encoding="utf-8"))

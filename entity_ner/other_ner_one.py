@@ -153,7 +153,6 @@ class BSSpider(threading.Thread):
                             entity_dict_label = {"text": medical_message, "labels": export_list}
                             entity_dict_label = json.dumps(entity_dict_label, ensure_ascii=False)
 
-                            fp.write(entity_dict_label + "\n")
             except Exception as e:
                 print(e)
 

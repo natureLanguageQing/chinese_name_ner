@@ -15,8 +15,8 @@ from bert4keras.tokenizers import Tokenizer
 
 rbtl_config_path = '../pre_train_language_model/rbtl3/bert_config_rbtl3.json'
 rbtl_dict_path = '../pre_train_language_model/rbtl3/vocab.txt'
-wait_predict_data = '../data/breath/breath.answer.csv'
-model_path = "../medical_ner/0.8512227442476828medical_ner.weights"
+wait_predict_data = '../data/bmes/bmes_test.json'
+model_path = "../bmes_models/0.8414420721036108bmes.weights"
 
 
 def get_id2label(label_path):
@@ -31,7 +31,7 @@ def get_id2label(label_path):
     return id2label, label2id, num_labels
 
 
-id2label, label2id, num_labels = get_id2label(label_path="medical_train.ner.labels.json")
+id2label, label2id, num_labels = get_id2label(label_path="bmes_train.rbtl.labels.json")
 max_text_length = 128
 batch_size = 16
 bert_layers = 3
@@ -103,8 +103,9 @@ if __name__ == '__main__':
                                          encoding="utf-8")
     export = []
 
-    for i in tqdm(medical_dicts_drop_duplicates.readlines()[1:1000]):
-        R = NER.recognize(i.strip("\n")[:256])
-        export.append({"text": i, "entities": R})
+    for i in tqdm(json.load(medical_dicts_drop_duplicates)):
+        R = NER.recognize(i["text"])
         print({"text": i, "entities": R})
+
+        export.append({"id": i["id"], "entities": R})
     json.dump(export, open("breath.answer.json", "w", encoding="utf-8"), ensure_ascii=False)
