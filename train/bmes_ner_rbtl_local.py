@@ -15,13 +15,14 @@ from bert4keras.snippets import sequence_padding, DataGenerator
 from bert4keras.tokenizers import Tokenizer
 import os
 import re
+
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
-basepath='/Users/chenquanbao/Downloads/chinese_wwm_ext_L-12_H-768_A-12'
+basepath = '/Users/chenquanbao/Downloads/chinese_wwm_ext_L-12_H-768_A-12'
 # basepath='/export/sdb/admin/train/chenquanbao/chinese_wwm_ext_L-12_H-768_A-12'
-rbtl_config_path = os.path.join(basepath,'bert_config.json')
-rbtl_checkpoint_path = os.path.join(basepath,'bert_model.ckpt')
-rbtl_dict_path = os.path.join(basepath,'vocab.txt')
+rbtl_config_path = os.path.join(basepath, 'bert_config.json')
+rbtl_checkpoint_path = os.path.join(basepath, 'bert_model.ckpt')
+rbtl_dict_path = os.path.join(basepath, 'vocab.txt')
 wait_train_data = '../data/bmes_train.json'
 
 max_text_length = 150
@@ -37,24 +38,24 @@ def del_character(content: str):
     return content
 
 
-def get_d(contents: dict) -> (list,set):
-    '''
+def get_d(contents: dict) -> (list, set):
+    """
     根据文本和标注的信息，将文本的所有字段都进行标注
     :return:
-    '''
-    wordlist = []
-    wordict = {}
+    """
+    word_list = []
+    word_dict = {}
     for x in contents['entities']:
         word, flag = x.split('-')
         word = del_character(word)
-        wordlist.append(word)
-        wordict[word] = flag
-    if len(wordlist) == 0:
-        return [[contents['text'], 'O']],set()
+        word_list.append(word)
+        word_dict[word] = flag
+    if len(word_list) == 0:
+        return [[contents['text'], 'O']], set()
     # 去除特殊符号
     content = del_character(contents['text'])
     # 对提取的命名体根据长度 排序
-    wordlista = [(word, flag, len(word)) for word, flag in wordict.items()]
+    wordlista = [(word, flag, len(word)) for word, flag in word_dict.items()]
     wordlista = sorted(wordlista, key=lambda x: x[2], reverse=True)
 
     for i in range(0, len(wordlista)):
@@ -70,29 +71,31 @@ def get_d(contents: dict) -> (list,set):
                 result.append([res[i], 'O'])
         else:
             word = wordlista[int(res[i])][0]
-            result.append([word, wordict[word]])
+            result.append([word, word_dict[word]])
 
-    return result,set(wordict.values())
+    return result, set(word_dict.values())
+
 
 def load_data_base(filename):
     D = []
     labels = set()
     f = open(filename, encoding='utf-8')
     medical = json.load(f)
-    maxlen=0
+    maxlen = 0
     for content in medical:
-        maxlen=max(maxlen,len(content['text']))
+        maxlen = max(maxlen, len(content['text']))
         try:
-            d,label=get_d(content)
+            d, label = get_d(content)
             D.append(d)
-            labels=labels.union(label)
+            labels = labels.union(label)
         except Exception as e:
-            print('maxerror-------------------------------------',content,e)
+            print('maxerror-------------------------------------', content, e)
 
-    return D,labels
+    return D, labels
+
 
 def load_data(filename):
-    D,labels=load_data_base(filename)
+    D, labels = load_data_base(filename)
     labels = list(set(labels))
     return D, labels
 
@@ -119,7 +122,7 @@ def get_id2label(label_path, train_path):
     labels_file = open(label_path, "w", encoding="utf-8")
     json.dump(id2label, labels_file)
 
-    json.dump(train_data,open('train_data.json',"w", encoding="utf-8"),ensure_ascii=False,indent=4)
+    json.dump(train_data, open('train_data.json', "w", encoding="utf-8"), ensure_ascii=False, indent=4)
 
     label2id = {}
     for i, j in id2label.items():
@@ -265,6 +268,7 @@ class Evaluator(keras.callbacks.Callback):
             (f1, precision, recall)
         )
 
+
 def train_model():
     evaluator = Evaluator()
     train_data, test_data, valid_data, _ = load_data_tri(wait_train_data)
@@ -278,8 +282,9 @@ def train_model():
         callbacks=[evaluator]
     )
 
+
 def predict_model():
-    filename='../bmes_models/0.6957148001440513bmes.weights'
+    filename = '../bmes_models/0.6957148001440513bmes.weights'
     model.load_weights(filename)
     medical_dicts_drop_duplicates = json.load(open("../data/bmes_test.json", "r",
                                                    encoding="utf-8"))
@@ -296,5 +301,3 @@ if __name__ == '__main__':
     train_model()
 
     predict_model()
-
-
