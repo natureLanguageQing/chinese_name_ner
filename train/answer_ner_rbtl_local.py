@@ -98,7 +98,7 @@ def get_id2label(label_path, train_path):
     train_data, labels = load_data(train_path)
     id2label = dict(enumerate(labels))
     labels_file = open(label_path, "w", encoding="utf-8")
-    json.dump(id2label, labels_file)
+    json.dump(id2label, labels_file, ensure_ascii=False)
     label2id = {}
     for i, j in id2label.items():
         label2id[j] = i

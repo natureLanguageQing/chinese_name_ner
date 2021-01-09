@@ -13,89 +13,92 @@ from bert4keras.optimizers import Adam
 from bert4keras.snippets import ViterbiDecoder, to_array
 from bert4keras.snippets import sequence_padding, DataGenerator
 from bert4keras.tokenizers import Tokenizer
+import os
+import re
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
-rbtl_config_path = '../pre_train_language_model/rbtl3/bert_config_rbtl3.json'
-rbtl_checkpoint_path = '../pre_train_language_model/rbtl3/bert_model.ckpt'
-rbtl_dict_path = '../pre_train_language_model/rbtl3/vocab.txt'
-wait_train_data = '../data/bmes/bmes_train.json'
+basepath='/Users/chenquanbao/Downloads/chinese_wwm_ext_L-12_H-768_A-12'
+# basepath='/export/sdb/admin/train/chenquanbao/chinese_wwm_ext_L-12_H-768_A-12'
+rbtl_config_path = os.path.join(basepath,'bert_config.json')
+rbtl_checkpoint_path = os.path.join(basepath,'bert_model.ckpt')
+rbtl_dict_path = os.path.join(basepath,'vocab.txt')
+wait_train_data = '../data/bmes_train.json'
+
+max_text_length = 150
+epochs = 1
+batch_size = 16
+bert_layers = 3
+learing_rate = 1e-5  # bert_layers越小，学习率应该要越大
+crf_lr_multiplier = 1000  # 必要时扩大CRF层的学习率
 
 
-def index_of_str(s1, s2, label):
-    s2 = s2.rstrip("\n")
-    dex = 0
-    index = []
-    lt = s1.split(s2)
-    num = len(lt)
-    for i in range(num - 1):
-        dex += len(lt[i])
-        index.append([dex, len(s2) + dex, label, s2])
-        dex += len(s2)
-    return index
+def del_character(content: str):
+    content = content.replace('[', '')
+    return content
 
 
-def load_data(filename):
+def get_d(contents: dict) -> (list,set):
+    '''
+    根据文本和标注的信息，将文本的所有字段都进行标注
+    :return:
+    '''
+    wordlist = []
+    wordict = {}
+    for x in contents['entities']:
+        word, flag = x.split('-')
+        word = del_character(word)
+        wordlist.append(word)
+        wordict[word] = flag
+    if len(wordlist) == 0:
+        return [[contents['text'], 'O']],set()
+    # 去除特殊符号
+    content = del_character(contents['text'])
+    # 对提取的命名体根据长度 排序
+    wordlista = [(word, flag, len(word)) for word, flag in wordict.items()]
+    wordlista = sorted(wordlista, key=lambda x: x[2], reverse=True)
+
+    for i in range(0, len(wordlista)):
+        content = content.replace(wordlista[i][0], '<<<' + str(i) + '>>>')
+
+    rex = re.compile('<<<|>>>')
+    res = rex.split(content)
+
+    result = []
+    for i in range(0, len(res)):
+        if i % 2 == 0:
+            if res[i] != '':
+                result.append([res[i], 'O'])
+        else:
+            word = wordlista[int(res[i])][0]
+            result.append([word, wordict[word]])
+
+    return result,set(wordict.values())
+
+def load_data_base(filename):
     D = []
-    labels = []
+    labels = set()
     f = open(filename, encoding='utf-8')
     medical = json.load(f)
-    for medical in medical:
-        d = []
+    maxlen=0
+    for content in medical:
+        maxlen=max(maxlen,len(content['text']))
+        try:
+            d,label=get_d(content)
+            D.append(d)
+            labels=labels.union(label)
+        except Exception as e:
+            print('maxerror-------------------------------------',content,e)
 
-        medical_text = medical["text"]
-        medical_labels = medical["entities"]
-        next_label = 0
-        label_index_list = []
-        for medical_label in medical_labels:
-            medical_pair = medical_label.split("-")
-            label_index = index_of_str(medical_text, medical_pair[0], medical_pair[1])
-            labels.append(medical_pair[1])
-            label_index_list.extend(label_index)
-        for label_index in label_index_list:
-            d.append([medical_text[next_label: label_index[0]], "O"])
-            d.append([medical_text[label_index[0]: label_index[1]], label_index[2]])
-            next_label = label_index[1]
-        D.append(d)
+    return D,labels
 
+def load_data(filename):
+    D,labels=load_data_base(filename)
     labels = list(set(labels))
     return D, labels
 
 
-load_data(wait_train_data)
-
-
-def take_second(elem):
-    return elem[0]
-
-
 def load_data_tri(filename):
-    D = []
-    labels = []
-    f = open(filename, encoding='utf-8')
-    medical = json.load(f)
-    for medical in medical:
-        d = []
-
-        medical_text = medical["text"]
-        medical_labels = medical["entities"]
-        next_label = 0
-        label_index_list = []
-        for medical_label in medical_labels:
-            medical_pair = medical_label.split("-")
-            label_index = index_of_str(medical_text, medical_pair[0], medical_pair[1])
-            labels.append(medical_pair[1])
-            label_index_list.extend(label_index)
-        label_index_list.sort(key=take_second)
-
-        for label_index in label_index_list:
-            print(label_index)
-            if next_label < label_index[0]:
-                print(next_label, label_index[0])
-                print([medical_text[next_label: label_index[0]], "O"])
-                d.append([medical_text[next_label: label_index[0]], "O"])
-                next_label = label_index[1]
-
-            d.append([medical_text[label_index[0]: label_index[1]], label_index[2]])
-        D.append(d)
+    D, labels = load_data_base(filename)
     valid_data = []
     train_data = []
     test_data = []
@@ -115,6 +118,9 @@ def get_id2label(label_path, train_path):
     id2label = dict(enumerate(labels))
     labels_file = open(label_path, "w", encoding="utf-8")
     json.dump(id2label, labels_file)
+
+    json.dump(train_data,open('train_data.json',"w", encoding="utf-8"),ensure_ascii=False,indent=4)
+
     label2id = {}
     for i, j in id2label.items():
         label2id[j] = i
@@ -122,14 +128,8 @@ def get_id2label(label_path, train_path):
     return id2label, label2id, num_labels
 
 
-id2label, label2id, num_labels = get_id2label(label_path="../labels/bmes_train.rbtl.labels.json",
+id2label, label2id, num_labels = get_id2label(label_path="bmes_train.rbtl.labels.json",
                                               train_path=wait_train_data)
-max_text_length = 64
-epochs = 10
-batch_size = 16
-bert_layers = 3
-learing_rate = 5e-5  # bert_layers越小，学习率应该要越大
-crf_lr_multiplier = 1000  # 必要时扩大CRF层的学习率
 
 # 建立分词器
 tokenizer = Tokenizer(rbtl_dict_path, do_lower_case=True)
@@ -249,7 +249,6 @@ class Evaluator(keras.callbacks.Callback):
     def on_epoch_end(self, epoch, logs=None):
         trans = K.eval(CRF.trans)
         NER.trans = trans
-        model.save_weights('../bmes_models/' + str(epoch) + 'bmes.weights')
 
         f1, precision, recall = evaluate(valid_data)
         # 保存最优
@@ -266,15 +265,36 @@ class Evaluator(keras.callbacks.Callback):
             (f1, precision, recall)
         )
 
-
-if __name__ == '__main__':
+def train_model():
     evaluator = Evaluator()
     train_data, test_data, valid_data, _ = load_data_tri(wait_train_data)
-    json.dump(train_data, open("bmes_train.rbtl.data.json", "w", encoding="utf-8"), ensure_ascii=False)
+
     train_generator = data_generator(train_data, batch_size)
 
     model.fit(
         train_generator.forfit(),
         steps_per_epoch=len(train_generator),
-        epochs=epochs, callbacks=[evaluator]
+        epochs=epochs,
+        callbacks=[evaluator]
     )
+
+def predict_model():
+    filename='../bmes_models/0.6957148001440513bmes.weights'
+    model.load_weights(filename)
+    medical_dicts_drop_duplicates = json.load(open("../data/bmes_test.json", "r",
+                                                   encoding="utf-8"))
+    export = []
+
+    for i in tqdm(medical_dicts_drop_duplicates):
+        R = NER.recognize(i["text"])
+        res = ['-'.join(x) for x in R]
+        export.append({"id": i["id"], "entities": res})
+    json.dump(export, open("entities.json", "w", encoding="utf-8"), ensure_ascii=False, indent=4)
+
+
+if __name__ == '__main__':
+    train_model()
+
+    predict_model()
+
+

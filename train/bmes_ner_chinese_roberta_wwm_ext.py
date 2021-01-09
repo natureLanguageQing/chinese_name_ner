@@ -63,6 +63,10 @@ def load_data(filename):
 load_data(wait_train_data)
 
 
+def take_second(elem):
+    return elem[0]
+
+
 def load_data_tri(filename):
     D = []
     labels = []
@@ -80,22 +84,29 @@ def load_data_tri(filename):
             label_index = index_of_str(medical_text, medical_pair[0], medical_pair[1])
             labels.append(medical_pair[1])
             label_index_list.extend(label_index)
+        label_index_list.sort(key=take_second)
+
         for label_index in label_index_list:
-            d.append([medical_text[next_label: label_index[0]], "O"])
+            print(label_index)
+            if next_label < label_index[0]:
+                print(next_label, label_index[0])
+                print([medical_text[next_label: label_index[0]], "O"])
+                d.append([medical_text[next_label: label_index[0]], "O"])
+                next_label = label_index[1]
+
             d.append([medical_text[label_index[0]: label_index[1]], label_index[2]])
-            next_label = label_index[1]
         D.append(d)
     valid_data = []
     train_data = []
     test_data = []
     for index, data in enumerate(D):
-        # count = index % 6
-        # if count == 1:
-        #     valid_data.append(data)
-        # elif count == 2:
-        #     test_data.append(data)
-        # else:
-        train_data.append(data)
+        count = index % 6
+        if count == 1:
+            valid_data.append(data)
+        elif count == 2:
+            test_data.append(data)
+        else:
+            train_data.append(data)
     return train_data, valid_data, test_data, labels
 
 
